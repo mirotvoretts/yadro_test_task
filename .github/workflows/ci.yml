@@ -1,9 +1,9 @@
-name: C++ Compilation Check
+name: C++ CI/CD Pipeline
 
 on: [push, pull_request]
 
 jobs:
-  check-compilation:
+  build-and-test:
     strategy:
       matrix:
         platform: [ubuntu-gcc, windows-mingw]
@@ -12,30 +12,54 @@ jobs:
             os: ubuntu-latest
             compiler: g++
             build_dir: linux-build
+            binary_name: task
           - platform: windows-mingw
             os: windows-latest
             compiler: x86_64-w64-mingw32-g++
             build_dir: windows-build
+            binary_name: task.exe
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install GCC (Ubuntu)
-        if: matrix.platform == 'ubuntu-gcc'
-        run: sudo apt-get update && sudo apt-get install -y g++
-
-      - name: Install MinGW (Windows)
-        if: matrix.platform == 'windows-mingw'
-        run: choco install mingw -y --no-progress
-
-      - name: Configure with CMake
+      - name: Install dependencies
         run: |
-          mkdir ${{ matrix.build_dir }}
+          if [ "${{ matrix.platform }}" = "ubuntu-gcc" ]; then
+            sudo apt-get update
+            sudo apt-get install -y g++ build-essential
+          else
+            choco install mingw -y --no-progress
+            echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+          fi
+
+      - name: Configure and Build
+        run: |
+          mkdir -p ${{ matrix.build_dir }}
           cd ${{ matrix.build_dir }}
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} ..
+          cmake --build . --config Release
 
-      - name: Build project
+      - name: Prepare test environment
+        run: |
+          mkdir -p test-data
+          # Создаем пустые .out файлы если их нет
+          for test_file in test-data/*.in; do
+            touch "${test_file%.in}.out"
+          done
+
+      - name: Run tests
         run: |
           cd ${{ matrix.build_dir }}
-          cmake --build . --config Release
+          chmod +x ../run-test-data.sh
+          ../run-test-data.sh ./${{ matrix.binary_name }}
+        working-directory: ${{ github.workspace }}
+
+      - name: Verify test outputs
+        run: |
+          cd test-data
+          for sol_file in *.sol; do
+            test_name="${sol_file%.sol}"
+            echo "===== Verifying $test_name ====="
+            diff -u "$test_name.sol" "$test_name.out" || exit 1
+          done
