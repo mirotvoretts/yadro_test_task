@@ -1,0 +1,47 @@
+name: C++ CI/CD Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        platform: [ubuntu-gcc, windows-mingw]
+        include:
+          - platform: ubuntu-gcc
+            os: ubuntu-latest
+            compiler: g++
+            script: "./run-test-data.sh"
+          - platform: windows-mingw
+            os: windows-latest
+            compiler: x86_64-w64-mingw32-g++
+            script: "bash run-test-data.sh"
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        if: matrix.platform == 'ubuntu-gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ build-essential
+
+      - name: Install MinGW (Windows)
+        if: matrix.platform == 'windows-mingw'
+        run: |
+          choco install mingw -y
+          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+
+      - name: Build project
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} ..
+          cmake --build .
+
+      - name: Run tests
+        run: |
+          chmod +x run-test-data.sh
+          ${{ matrix.script }} task
+        working-directory: ${{ github.workspace }}
