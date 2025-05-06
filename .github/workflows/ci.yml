@@ -11,17 +11,15 @@ jobs:
           - platform: ubuntu-gcc
             os: ubuntu-latest
             compiler: g++
-            script: "./run-test-data.sh"
           - platform: windows-mingw
             os: windows-latest
             compiler: x86_64-w64-mingw32-g++
-            script: "bash run-test-data.sh"
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux)
         if: matrix.platform == 'ubuntu-gcc'
         run: |
           sudo apt-get update
@@ -33,15 +31,16 @@ jobs:
           choco install mingw -y
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
-      - name: Build project
+      - name: Configure and Build
         run: |
           mkdir build
           cd build
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} ..
-          cmake --build .
+          cmake --build . --config Release
 
       - name: Run tests
         run: |
-          chmod +x run-test-data.sh
-          ${{ matrix.script }} task
+          cd build
+          chmod +x ../run-test-data.sh
+          ../run-test-data.sh ./task  # Используем путь к скомпилированному бинарнику
         working-directory: ${{ github.workspace }}
