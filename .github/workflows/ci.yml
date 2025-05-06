@@ -13,49 +13,55 @@ jobs:
             compiler: g++
             build_dir: linux-build
             binary_name: task
+            shell: bash
           - platform: windows-mingw
             os: windows-latest
             compiler: x86_64-w64-mingw32-g++
             build_dir: windows-build
             binary_name: task.exe
+            shell: pwsh
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
 
       - name: Install dependencies
+        shell: ${{ matrix.shell }}
         run: |
-          if [ "${{ matrix.platform }}" = "ubuntu-gcc" ]; then
+          if ("${{ matrix.platform }}" -eq "ubuntu-gcc") {
             sudo apt-get update
             sudo apt-get install -y g++ build-essential
-          else
+          } else {
             choco install mingw -y --no-progress
-            echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
-          fi
+            $env:PATH += ";C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+          }
 
       - name: Configure and Build
+        shell: ${{ matrix.shell }}
         run: |
-          mkdir -p ${{ matrix.build_dir }}
+          mkdir ${{ matrix.build_dir }}
           cd ${{ matrix.build_dir }}
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} ..
           cmake --build . --config Release
 
       - name: Prepare test environment
+        shell: bash
         run: |
           mkdir -p test-data
-          # Создаем пустые .out файлы если их нет
           for test_file in test-data/*.in; do
-            touch "${test_file%.in}.out"
+            out_file="${test_file%.in}.out"
+            [[ -f "$out_file" ]] || touch "$out_file"
           done
 
       - name: Run tests
+        shell: bash
         run: |
           cd ${{ matrix.build_dir }}
           chmod +x ../run-test-data.sh
           ../run-test-data.sh ./${{ matrix.binary_name }}
-        working-directory: ${{ github.workspace }}
 
       - name: Verify test outputs
+        shell: bash
         run: |
           cd test-data
           for sol_file in *.sol; do
