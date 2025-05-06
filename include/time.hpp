@@ -6,4 +6,4 @@
 int parse_time(const std::string &time_as_string);
 std::string format_time(int minutes);
 
-#endif  // TIME_HPP
+#endif // TIME_HPP
