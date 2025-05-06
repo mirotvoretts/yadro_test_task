@@ -1,1 +1,4 @@
 t0-example
+t1-early-bird-attempt
+t2-client-unknown-error
+t3-rapid-table-switching
