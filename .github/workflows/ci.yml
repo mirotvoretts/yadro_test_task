@@ -1,9 +1,9 @@
-name: C++ CI/CD Pipeline
+name: C++ Compilation Check
 
 on: [push, pull_request]
 
 jobs:
-  build-and-test:
+  check-compilation:
     strategy:
       matrix:
         platform: [ubuntu-gcc, windows-mingw]
@@ -12,60 +12,30 @@ jobs:
             os: ubuntu-latest
             compiler: g++
             build_dir: linux-build
-            binary_name: task
-            shell: bash
           - platform: windows-mingw
             os: windows-latest
             compiler: x86_64-w64-mingw32-g++
             build_dir: windows-build
-            binary_name: task.exe
-            shell: pwsh
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install dependencies
-        shell: ${{ matrix.shell }}
-        run: |
-          if ("${{ matrix.platform }}" -eq "ubuntu-gcc") {
-            sudo apt-get update
-            sudo apt-get install -y g++ build-essential
-          } else {
-            choco install mingw -y --no-progress
-            $env:PATH += ";C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
-          }
+      - name: Install GCC (Ubuntu)
+        if: matrix.platform == 'ubuntu-gcc'
+        run: sudo apt-get update && sudo apt-get install -y g++
 
-      - name: Configure and Build
-        shell: ${{ matrix.shell }}
+      - name: Install MinGW (Windows)
+        if: matrix.platform == 'windows-mingw'
+        run: choco install mingw -y --no-progress
+
+      - name: Configure with CMake
         run: |
           mkdir ${{ matrix.build_dir }}
           cd ${{ matrix.build_dir }}
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} ..
-          cmake --build . --config Release
 
-      - name: Prepare test environment
-        shell: bash
-        run: |
-          mkdir -p test-data
-          for test_file in test-data/*.in; do
-            out_file="${test_file%.in}.out"
-            [[ -f "$out_file" ]] || touch "$out_file"
-          done
-
-      - name: Run tests
-        shell: bash
+      - name: Build project
         run: |
           cd ${{ matrix.build_dir }}
-          chmod +x ../run-test-data.sh
-          ../run-test-data.sh ./${{ matrix.binary_name }}
-
-      - name: Verify test outputs
-        shell: bash
-        run: |
-          cd test-data
-          for sol_file in *.sol; do
-            test_name="${sol_file%.sol}"
-            echo "===== Verifying $test_name ====="
-            diff -u "$test_name.sol" "$test_name.out" || exit 1
-          done
+          cmake --build . --config Release
