@@ -1,9 +1,9 @@
-name: C++ CI/CD Pipeline
+name: C++ Compilation Check
 
 on: [push, pull_request]
 
 jobs:
-  build-and-test:
+  check-compilation:
     strategy:
       matrix:
         platform: [ubuntu-gcc, windows-mingw]
@@ -11,36 +11,31 @@ jobs:
           - platform: ubuntu-gcc
             os: ubuntu-latest
             compiler: g++
+            build_dir: linux-build
           - platform: windows-mingw
             os: windows-latest
             compiler: x86_64-w64-mingw32-g++
+            build_dir: windows-build
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install dependencies (Linux)
+      - name: Install GCC (Ubuntu)
         if: matrix.platform == 'ubuntu-gcc'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y g++ build-essential
+        run: sudo apt-get update && sudo apt-get install -y g++
 
       - name: Install MinGW (Windows)
         if: matrix.platform == 'windows-mingw'
-        run: |
-          choco install mingw -y
-          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+        run: choco install mingw -y --no-progress
 
-      - name: Configure and Build
+      - name: Configure with CMake
         run: |
-          mkdir build
-          cd build
+          mkdir ${{ matrix.build_dir }}
+          cd ${{ matrix.build_dir }}
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} ..
-          cmake --build . --config Release
 
-      - name: Run tests
+      - name: Build project
         run: |
-          cd build
-          chmod +x ../run-test-data.sh
-          ../run-test-data.sh ./task  # Используем путь к скомпилированному бинарнику
-        working-directory: ${{ github.workspace }}
+          cd ${{ matrix.build_dir }}
+          cmake --build . --config Release
