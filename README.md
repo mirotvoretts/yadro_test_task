@@ -1,6 +1,6 @@
 # Yadro Тестовое Задание :: Компьютерный клуб
 
-![C++](https://img.shields.io/badge/C++-17-blue.svg)
+![C++](https://img.shields.io/badge/C++-20-blue.svg)
 ![CMake](https://img.shields.io/badge/CMake-3.10+-brightgreen.svg)
 ![Testing](https://img.shields.io/badge/Tested-GCC%20%7C%20MinGW-success.svg)
 
